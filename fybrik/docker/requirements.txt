@@ -1,2 +1,6 @@
-pandas
-pyarrow
+numpy==1.22.0
+pandas==1.3.5
+pyarrow==6.0.1
+python-dateutil==2.8.2
+pytz==2021.3
+six==1.16.0
