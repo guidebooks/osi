@@ -22,6 +22,7 @@ def get_data(endpoint, namespace):
     info = client.get_flight_info(fl.FlightDescriptor.for_command(json.dumps(request)))
     reader: fl.FlightStreamReader = client.do_get(info.endpoints[0].ticket)
     df: pd.DataFrame = reader.read_pandas()
+    pd.set_option('display.max_columns', None)
     print(df)
 
 if __name__ == '__main__':
