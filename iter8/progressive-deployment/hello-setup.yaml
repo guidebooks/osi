@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello
+  labels:
+    app.kubernetes.io/managed-by: Iter8
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/track: baseline
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+  selector:
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/track: baseline
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  labels:
+    app.kubernetes.io/managed-by: Iter8
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/track: baseline
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hello
+      app.kubernetes.io/track: baseline
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hello
+        app.kubernetes.io/track: baseline
+    spec:
+      containers:
+      - name: hello
+        image: gcr.io/google-samples/hello-app:1.0
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-candidate
+  labels:
+    app.kubernetes.io/managed-by: Iter8
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/track: candidate
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+  selector:
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/track: candidate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-candidate
+  labels:
+    app.kubernetes.io/managed-by: Iter8
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/track: candidate
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hello
+      app.kubernetes.io/track: candidate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hello
+        app.kubernetes.io/track: candidate
+    spec:
+      containers:
+      - name: hello
+        image: gcr.io/google-samples/hello-app:2.0
+        ports:
+        - containerPort: 8080
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: hello
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "hello.example.com"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: hello
+spec:
+  gateways:
+  # - mesh
+  - hello
+  hosts:
+  - hello
+  - "hello.example.com"
+  http:
+  - match:
+    # routing for test traffic targetting the candidate version
+    # assumes has header X-Iter8: candidate
+    - headers:
+        x-iter8:
+          exact: candidate
+    route:
+    - destination:
+        host: hello-candidate.NAMESPACE.svc.cluster.local
+        port:
+          number: 8080
+  # default route -- use distribution
+  - route:
+    - destination:
+        host: hello.NAMESPACE.svc.cluster.local
+        port:
+          number: 8080
+      weight: 100
+    - destination:
+        host: hello-candidate.NAMESPACE.svc.cluster.local
+        port:
+          number: 8080
+      weight: 0
